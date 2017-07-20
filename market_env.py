@@ -6,16 +6,40 @@ import numpy as np
 import math
 from poloniex import Poloniex
 
-def sharpe_ratio(returns, freq=365) :
-  """Given a set of returns, calculates naive (rfr=0) sharpe """
-  return (np.sqrt(freq) * np.mean(returns))/np.std(returns)
+class PoloniexDataSource(object):
+  '''
+  DataSource US-based exchange Poloniex: poloniex.com
+  '''
+  def __init__(self, client = Poloniex, api_key = '', secret_key = ''):
+    self.api_key = api_key
+    self.secret_key = secret_key
+    self.client = client(self.api_key, self.secret_key)
 
-def prices_to_returns(prices):
-  px = pd.DataFrame(prices)
-  nl = px.shift().fillna(0)
-  R = ((px - nl)/nl).fillna(0).replace([np.inf, -np.inf], np.nan).dropna()
-  R = np.append( R[0].values, 0)
-  return R
+  def _featurize(self, df):
+    df['daily_return'] = df['close'].pct_change()
+    df.dropna(axis=0, inplace=True)
+    rolling_mean = pd.stats.moments.rolling_mean(df['close'], 7)
+    df.dropna(axis=0, inplace=True)
+    df['rolling_mean'] = rolling_mean
+    df['close_mean_ration'] = df['close'] / rolling_mean
+    return df[
+      [
+        'close',
+        'volume',
+        'daily_return',
+        'rolling_mean',
+        'close_mean_ration'
+      ]
+    ]
+
+  def get_historical_data(self, pair, period, start_date, end_date):
+    df = pd.DataFrame.from_dict(
+      self.client.returnChartData(pair, period, start_date, end_date)
+    )
+    df['date'] = pd.to_datetime(df['date'], unit='s')
+    df.set_index('date', inplace=True)
+    df = df.convert_objects(convert_numeric=True)
+    return self._featurize(df)
 
 
 class DataSource(object):
@@ -23,17 +47,11 @@ class DataSource(object):
     Class responsible for querying data from Poloniex API, prepares it for the trading environment
     and then also acts as as data source for each step on the environment
     '''
-    def __init__(self, pair, period, start_date, end_date, days = 365, client = Poloniex()):
+
+    def __init__(self, pair, period, start_date, end_date, days = 365, src = PoloniexDataSource()):
         self.pair = pair
         self.days = days
-        data = client.returnChartData(pair, period, start_date, end_date)
-        df = pd.DataFrame.from_dict(data)
-        df['date'] = pd.to_datetime(df['date'], unit='s')
-        df.set_index('date', inplace=True)
-        df = df.convert_objects(convert_numeric=True)
-        df['close_percent_change'] = df['close'].pct_change()
-        df['volume_percent_change'] = df['volume'].pct_change()
-        self.data = df[['close', 'volume', 'close_percent_change', 'volume_percent_change']]
+        self.data = src.get_historical_data(pair, period, start_date, end_date)
 
     def reset(self):
         self.idx = np.random.randint( low = 0, high=len(self.data.index)-self.days )
@@ -50,8 +68,6 @@ class DataSource(object):
         done = self.step >= self.days
         return obs, done
 
-    def data(self):
-        return self.data
 
 
 
