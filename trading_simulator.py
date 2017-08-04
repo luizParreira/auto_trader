@@ -12,7 +12,7 @@ class TradingSimulator(object):
         self.data_source     = data_source
         self.trading_cost    = trading_cost
         self.simulation_data = simulation_data
-        self.prices          = self.data_source.prices
+        self.prices          = self.data_source.get_prices()
         self.trades          = self._build_zero_filled_df(self.prices)
         self.holdings        = self._build_zero_filled_df(self.prices)
         self.values          = self._build_zero_filled_df(self.prices)
@@ -46,7 +46,7 @@ class TradingSimulator(object):
                 self.trades[trading_symbol][date] = self.value / price
                 self.trades[base_symbol][date] = -self.value
             else:
-            self.trades[trading_symbol][date] = self.trades[trading_symbol][previous_date]
+                self.trades[trading_symbol][date] = self.trades[trading_symbol][previous_date]
         if action == "SELL":
             if self.step == 0 or self.holdings[trading_symbol][previous_date] == 0:
                 self.trades[trading_symbol][date] = -(self.value / price)
@@ -72,7 +72,10 @@ class TradingSimulator(object):
         prev_trade = self.trades[trading_symbol][previous_date]
         should_charge = self.step != 0 and curr_trade == prev_trade
         trading_cost = 0.0 if should_charge else self.trading_cost
-        reward = (1 - trading_cost) * self.prices["daily_return"][date]
+        if self.holdings[trading_symbol][date] > 0:
+            reward = (1 - trading_cost) * self.prices["daily_return"][date]
+        else:
+            reward = (1 - trading_cost) * self.prices["daily_return"][date] * -1.0
         info = {
             "reward": reward,
             "port_value": self.portfolio_value,
