@@ -7,12 +7,11 @@ class TradingSimulator(object):
     Trading simulator, responsible for handling the data transitions involved on each step
     of trading. It also keeps track of the data associated with the simulation.
     """
-    def __init__(self, value, data_source, simulation_data, trading_cost = .0025):
+    def __init__(self, value, prices, simulation_data, trading_cost = .0025):
         self.value   = value
-        self.data_source     = data_source
         self.trading_cost    = trading_cost
         self.simulation_data = simulation_data
-        self.prices          = self.data_source.get_prices()
+        self.prices          = prices
         self.trades          = self._build_zero_filled_df(self.prices)
         self.holdings        = self._build_zero_filled_df(self.prices)
         self.values          = self._build_zero_filled_df(self.prices)

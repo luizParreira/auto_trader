@@ -4,14 +4,11 @@ import pandas as pd
 import numpy as np
 
 class MarketEnv(object):
-    VALID_ACTIONS = ["SELL", "BUY"]
-
-    def __init__(self, trial_data, simulator, src, testing = False):
-        self.trial_data = trial_data
-        self.src = src
+    def __init__(self, simulator, src, testing = False):
         self.simulator = simulator
+        self.src = src
         self.testing = testing
-        self.valid_actions = VALID_ACTIONS
+        self.valid_actions = ["SELL", "BUY"]
 
     def reset(self):
         self.src.reset()
