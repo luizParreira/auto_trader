@@ -12,12 +12,12 @@ class PoloniexDataSource(object):
     """
     def __init__(self, asset_data, client=Poloniex, api_key="", secret_key=""):
         self.api_key = api_key
+        self.secret_key = secret_key
         self.period = asset_data["period"]
         self.pair = asset_data["pair"]
         self.days = asset_data["days"]
         self.start_date = asset_data["start_date"]
         self.end_date = asset_data["end_date"]
-        self.secret_key = secret_key
         self.client = client(self.api_key, self.secret_key)
         self.chart_data = self._get_chart_data()
         self.prices = self._import_prices()

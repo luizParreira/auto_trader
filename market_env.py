@@ -21,10 +21,14 @@ class MarketEnv(object):
         self.src.reset()
         self.simulator.reset()
 
-    def get_state(self):
+    def get_current_state(self):
+        '''
+        Returns a tuple with the state
+        (holding, close_mean_ratio, bbands, daily_return) [discretized]
+        '''
         data = self.src.get_state_data()
         # close_mean_ratio, bbands, daily_return
-        return (0, data[0], data[1], data[2])
+        return (False, data[0], data[1], data[2])
 
     def step(self, action):
         '''
