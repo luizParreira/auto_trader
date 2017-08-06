@@ -16,17 +16,18 @@ class Agent(object):
         self.learning = learning
         self.epsilon = epsilon
         self.alpha = alpha
+        self.step_data = dict()
+        self.trial_data = []
         self.step = 0
         random.seed(1110)
 
-    def reset(self, testing = False):
+    def reset(self, testing=False):
         '''
         Resets the agents' data every training and testing trial
         '''
         if testing:
             self.epsilon = 0
             self.alpha = 0
-
         return
 
     def build_state(self):
@@ -34,14 +35,23 @@ class Agent(object):
         Builds the current state for the agent
         returns: Tuple: (,)
         '''
-        return
+        state = self.env.get_state()
+
+        if self.step_data.get('info'):
+            holding = self.step_data['info']['currently_holding']
+            state_list = list(state)
+            state_list[0] = holding
+            state = tuple(state_list)
+        return state
 
     def create_q(self, state):
         '''
         Creates the Q-Table for the given state, if it does not already exists.
         By populating the Q-Value over all valid actions with 0.0
         '''
-        return self.q_table[state]
+        if not self.q_table.get(state):
+            self.q_table[state] = dict((key, 0.0) for key in self.valid_actions)
+        return
 
     def choose_action(self, _state):
         '''
@@ -54,7 +64,7 @@ class Agent(object):
             - Choose a random action with `epsilon` probability
             - else, choose the action with the highest Q-value for this state
         '''
-        action = random.choice(self.valid_actions)
+        action = random.choice(self.valid_actions) # Random agent
         return action
 
     def learn(self, state, action, reward):
@@ -66,7 +76,7 @@ class Agent(object):
         are unpredictable in a trading scenario.
         '''
         # TODO: Fix this function
-        return self.q_table[state][action] + reward
+        return reward
 
     def update(self):
         '''
@@ -78,6 +88,16 @@ class Agent(object):
         state = self.build_state()
         self.create_q(state)
         action = self.choose_action(state)
-        reward, _info = self.env.step(action)
+        reward, info, done = self.env.step(action)
+        self._collect_data(info, done)
         self.learn(state, action, reward)
+        if done:
+            print info["port_value"]
+            print info["actions"]
+        return
+
+    def _collect_data(self, info, done):
+        self.step_data['info'] = info
+        self.step_data['done'] = done
+        self.trial_data.append(self.step_data)
         return

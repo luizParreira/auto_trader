@@ -21,12 +21,17 @@ class MarketEnv(object):
         self.src.reset()
         self.simulator.reset()
 
+    def get_state(self):
+        data = self.src.get_state_data()
+        # close_mean_ratio, bbands, daily_return
+        return (0, data[0], data[1], data[2])
+
     def step(self, action):
         '''
         Step into another time step with a chosen action by the agent
         '''
         assert action in self.valid_actions
 
-        obs, done = self.src.step()
+        done = self.src.step()
         reward, info = self.simulator.step(action)
-        return reward, obs, info, done
+        return reward, info, done

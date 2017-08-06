@@ -21,10 +21,10 @@ class PoloniexDataSource(object):
         self.client = client(self.api_key, self.secret_key)
         self.chart_data = self._get_chart_data()
         self.prices = self._import_prices()
-        self.data = self._build_data()
+        self.state_data = self._build_state_data()
         self._step = 0
 
-    def _build_data(self):
+    def _build_state_data(self):
         '''
         Build data that will later be used by the agent based on the data gathered from the exchange
         '''
@@ -34,11 +34,45 @@ class PoloniexDataSource(object):
         data_frame = data_frame.convert_objects(convert_numeric=True)
         data_frame["daily_return"] = data_frame["close"].pct_change()
         data_frame.dropna(axis=0, inplace=True)
-        rolling_mean = pd.stats.moments.rolling_mean(data_frame["close"], 7)
+        rolling_mean = data_frame["close"].rolling(window=7, center=False).mean()
         data_frame["rolling_mean"] = rolling_mean
-        data_frame.dropna(axis=0, inplace=True)
-        data_frame["close_mean_ration"] = data_frame["close"] / rolling_mean
-        return data_frame[["close", "volume", "daily_return", "rolling_mean", "close_mean_ration"]]
+        data_frame["bbands"] = self._compute_bolinger_bands(data_frame)
+        data_frame["close_mean_ratio"] = data_frame["close"] / rolling_mean
+        data_frame.fillna(method='ffill', axis=0, inplace=True)
+        data_frame.fillna(method='backfill', axis=0, inplace=True)
+        data_frame["close_mean_ratio_disc"] = self._discretize(data_frame, "close_mean_ratio")
+        data_frame["daily_return_disc"] = self._discretize(data_frame, "daily_return")
+        return data_frame[["close_mean_ratio_disc", "bbands", "daily_return_disc"]]
+
+    def _discretize(self, data_frame, col):
+        return pd.cut(data_frame[col], 3, labels=["low", "medium", "high"])
+
+    def _discretize_bolinger_bands(self, price, downband, avg, upband):
+        n = len(price.index)
+        bb_disc = np.zeros(n)
+        for i in range(n):
+            p = price[i]
+            if p > upband[i]:
+                bb_disc[i] = 2
+                continue
+            if p > avg[i]:
+                bb_disc[i] = 1
+                continue
+            if p > downband[i]:
+                bb_disc[i] = -1
+            else:
+                bb_disc[i] = -2
+        return bb_disc
+
+
+    def _compute_bolinger_bands(self, data_frame):
+        price = data_frame["close"]
+        std_dev = price.rolling(window=7, center=False).std()
+        avg = data_frame["rolling_mean"]
+        upband = avg + (2 * std_dev)
+        downband = avg - (2 * std_dev)
+
+        return self._discretize_bolinger_bands(price, downband, avg, upband)
 
     def _get_chart_data(self):
         return self.client.returnChartData(self.pair, self.period, self.start_date, self.end_date)
@@ -67,11 +101,13 @@ class PoloniexDataSource(object):
         '''
         self._step = 0
 
+    def get_state_data(self):
+        return self.state_data.iloc[self._step].as_matrix()
+
     def step(self):
         '''
         Step into another episode (day) of trading and return the observed data for that date
         '''
-        obs = self.data.iloc[self._step].as_matrix()
         self._step += 1
-        done = self._step >= len(self.data.index)
-        return obs, done
+        done = self._step >= len(self.state_data.index)
+        return done

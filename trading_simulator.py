@@ -19,6 +19,8 @@ class TradingSimulator(object):
         self.holdings = self._build_zero_filled_df(self.prices)
         self.values = self._build_zero_filled_df(self.prices)
         self.portfolio_value = self._build_portfolio_value_df(self.prices)
+        self.actions = np.zeros(len(self.prices.index))
+        self.cumulative_return = np.zeros(len(self.prices.index))
         self._step = 0
         self.dates = self.prices.index
 
@@ -36,14 +38,18 @@ class TradingSimulator(object):
         """
         Step another day into the simulation.
         Actions:
-        - BUY
-        - SELL
+        - BUY(1)
+        - SELL(-1)
         """
+        assert action in ["BUY", "SELL"]
+
         pair = self.simulation_data["pair"]
         date = self.dates[self._step]
         previous_date = self.dates[0] if self._step == 0 else self.dates[self._step - 1]
         base_symbol, trading_symbol = pair.split("_")
         price = self.prices[pair][date]
+
+        self.actions[self._step] = 1 if action == "BUY" else -1
 
         if self._step == 0:
             self.trades[base_symbol][date] = self.value
@@ -60,7 +66,7 @@ class TradingSimulator(object):
 
         if action == "SELL":
             previous_holding = self.holdings[trading_symbol][previous_date]
-            if self._step != 0 or  previous_holding > 0:
+            if previous_holding > 0:
                 self.trades[trading_symbol][date] = -previous_holding
                 self.trades[base_symbol][date] = previous_holding * price
                 self.trading_cost = 0.25 / 100.0
@@ -90,18 +96,20 @@ class TradingSimulator(object):
         self.portfolio_value["portfolio_value"][date] = port_value
 
         # Compute the _step reward
-        if self.holdings[trading_symbol][date] > 0:
+        currently_holing = self.holdings[trading_symbol][date] > 0
+        if currently_holing:
             reward = (1 - self.trading_cost) * self.prices["daily_return"][date]
             if self._step == 0:
                 reward = -self.trading_cost
         else:
             reward = (1 - self.trading_cost) * self.prices["daily_return"][date] * -1.0
-
         info = {
             "reward": reward,
             "port_value": self.portfolio_value,
             "holdings": self.holdings,
-            "values": self.values
+            "currently_holding": currently_holing,
+            "values": self.values,
+            "actions": self.actions
         }
         self._step += 1
         return reward, info
