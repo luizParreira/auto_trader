@@ -20,7 +20,7 @@ class PoloniexDataSource(object):
         self.end_date = asset_data["end_date"]
         self.client = client(self.api_key, self.secret_key)
         self.chart_data = self._get_chart_data()
-        self.prices = self._import_prices()
+        self.prices = []
         self.state_data = self._build_state_data()
         self._step = 0
 
@@ -93,6 +93,8 @@ class PoloniexDataSource(object):
         '''
         Getter methot to return the prices fetched through this class
         '''
+        if len(self.prices) == 0:
+            self.prices = self._import_prices()
         return self.prices
 
     def reset(self):

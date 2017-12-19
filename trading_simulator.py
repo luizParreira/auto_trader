@@ -43,7 +43,6 @@ class TradingSimulator(object):
         - SELL(-1)
         """
         assert action in ["BUY", "SELL"]
-
         date = self.dates[self._step]
         previous_date = date if self._step == 0 else self.dates[self._step - 1]
         price = self.prices[self.pair][date]
@@ -62,6 +61,7 @@ class TradingSimulator(object):
 
         # Update portfolio value
         port_value = self.values[self.values.columns].sum(axis=1)[date]
+        #print port_value
         self.portfolio_value["portfolio_value"][date] = port_value
 
         # Compute the step reward

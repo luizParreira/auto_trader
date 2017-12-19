@@ -4,6 +4,7 @@ Agent module
 '''
 import random
 import math
+import time
 
 class Agent(object):
     '''
@@ -23,7 +24,7 @@ class Agent(object):
         self.step = 0
         self.epsilon_decay = 0.995
         self.epsilons = []
-        random.seed(1110)
+        random.seed(time.time())
 
     def reset(self, testing=False):
         '''
@@ -143,5 +144,5 @@ class Agent(object):
         return
 
     def update_epsilon(self):
-        self.epsilon *= math.cos(0.01 * self.step)
+        self.epsilon -= math.cos(0.01 * self.step)
         return
